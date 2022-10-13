@@ -1,2 +1,2 @@
-# sphincsplus
-A Java implementation of the sphincs+ post-quantum signature scheme
+# SPHINCS+
+A Java implementation of the SPHINCS+ post-quantum signature scheme - SPHINCS+-128f(SHA256)

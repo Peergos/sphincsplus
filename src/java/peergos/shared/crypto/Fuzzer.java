@@ -30,7 +30,7 @@ public class Fuzzer {
         byte[] nativeSigned = new byte[SPX_BYTES + m.length];
         byte[] nativeOpened = new byte[nativeSigned.length - SPX_BYTES];
 
-        for (int i=0; i < 100; i++) {
+        for (int i=0; i < 200_000; i++) {
             r.nextBytes(seed);
             r.nextBytes(m);
             lib.crypto_sign_seed_keypair(pk, sk, seed);
@@ -50,6 +50,8 @@ public class Fuzzer {
             byte[] javaOpened = crypto_sign_open(javaSigned, java_pk);
             if (!Arrays.equals(nativeOpened, javaOpened))
                 throw new IllegalStateException("Difference!");
+            if ((i+1) % 1000 == 0)
+                System.out.println("Done " + i);
         }
     }
 }

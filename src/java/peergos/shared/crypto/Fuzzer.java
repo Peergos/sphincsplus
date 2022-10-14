@@ -1,7 +1,8 @@
 package peergos.shared.crypto;
 
-import jnr.ffi.LibraryLoader;
+import jnr.ffi.*;
 import jnr.ffi.Runtime;
+import jnr.ffi.byref.*;
 
 import java.util.*;
 
@@ -38,14 +39,14 @@ public class Fuzzer {
                 throw new IllegalStateException("Difference!");
             if (!Arrays.equals(java_sk, sk))
                 throw new IllegalStateException("Difference!");
-            System.out.println("Hooray!");
 
-            lib.crypto_sign(nativeSigned, nativeSigned.length, m, m.length, sk);
+            NativeLongByReference len = new NativeLongByReference();
+            lib.crypto_sign(nativeSigned, len, m, m.length, sk);
             byte[] javaSigned = crypto_sign(m, java_sk);
             if (!Arrays.equals(nativeSigned, javaSigned))
                 throw new IllegalStateException("Difference!");
 
-            lib.crypto_sign_open(nativeOpened, nativeOpened.length, nativeSigned, nativeSigned.length, pk);
+            lib.crypto_sign_open(nativeOpened, len, nativeSigned, nativeSigned.length, pk);
             byte[] javaOpened = crypto_sign_open(javaSigned, java_pk);
             if (!Arrays.equals(nativeOpened, javaOpened))
                 throw new IllegalStateException("Difference!");

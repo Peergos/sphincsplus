@@ -51,7 +51,7 @@ public class Fuzzer {
             if (!Arrays.equals(nativeOpened, javaOpened))
                 throw new IllegalStateException("Difference!");
             if ((i+1) % 1000 == 0)
-                System.out.println("Done " + i);
+                System.out.println("Done " + (i+1));
         }
     }
 }

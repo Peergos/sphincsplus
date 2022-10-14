@@ -2,10 +2,8 @@ package peergos.shared.crypto;
 
 import java.security.*;
 import java.util.*;
-import java.io.*;
-import java.util.stream.*;
 
-public class Sphincsplus {
+public class JavaSphincsplus {
 
     // Sphincs+ 128f-sha2
 

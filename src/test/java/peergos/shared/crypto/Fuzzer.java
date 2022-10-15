@@ -23,14 +23,13 @@ public class Fuzzer {
         byte[] pk = new byte[SPX_PK_BYTES];
         byte[] sk = new byte[SPX_SK_BYTES];
         byte[] seed = new byte[CRYPTO_SEED_BYTES];
-        byte[] m = new byte[36];
         byte[] java_pk = new byte[SPX_PK_BYTES];
         byte[] java_sk = new byte[SPX_SK_BYTES];
 
-        byte[] nativeSigned = new byte[SPX_BYTES + m.length];
-        byte[] nativeOpened = new byte[nativeSigned.length - SPX_BYTES];
-
         for (int i=0; i < 200_000; i++) {
+            byte[] m = new byte[r.nextInt(150) + 1];
+            byte[] nativeSigned = new byte[SPX_BYTES + m.length];
+            byte[] nativeOpened = new byte[nativeSigned.length - SPX_BYTES];
             r.nextBytes(seed);
             r.nextBytes(m);
             lib.crypto_sign_seed_keypair(pk, sk, seed);

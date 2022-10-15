@@ -466,12 +466,16 @@ public class JavaSphincsplus {
 		else {
 			int initialCopySize = SPX_INBLOCKS * SPX_SHAX_BLOCK_BYTES - SPX_N - SPX_PK_BYTES;
 			System.arraycopy(m, 0, inbuf, SPX_N + SPX_PK_BYTES, initialCopySize);
-	    
-			Sha256 hash = new Sha256();
-			hash.update(inbuf);
-			hash.update(m, initialCopySize, m.length - initialCopySize);
-			byte[] res = hash.digest();
-			System.arraycopy(res, 0, seed, 2*SPX_N, 32);
+
+			try {
+				MessageDigest md = MessageDigest.getInstance("SHA-256");
+				md.update(inbuf);
+				md.update(m, initialCopySize, m.length - initialCopySize);
+				byte[] res = md.digest();
+				System.arraycopy(res, 0, seed, 2 * SPX_N, 32);
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
 		}
 	
 		// H_msg: MGF1-SHA-X(R ‖ PK.seed ‖ seed)

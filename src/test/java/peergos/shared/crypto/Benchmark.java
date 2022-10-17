@@ -7,6 +7,7 @@ import static peergos.shared.crypto.JavaSphincsplus.*;
 public class Benchmark {
 
     public static void main(String[] a) {
+        int runs = 1000;
         byte[] pk = new byte[SPX_PK_BYTES];
         byte[] sk = new byte[SPX_SK_BYTES];
         byte[] seed = new byte[CRYPTO_SEED_BYTES];
@@ -16,20 +17,26 @@ public class Benchmark {
 
         byte[] m = new byte[36];
         r.nextBytes(m);
-        benchmark(m, pk, sk);
+        benchmark(runs, m, pk, sk);
     }
 
-    private static int benchmark(byte[] m, byte[] pk, byte[] sk) {
+    private static int benchmark(int runs, byte[] m, byte[] pk, byte[] sk) {
         int res = 0;
-        for (int i=0; i  < 100000; i++) {
+        long bestSign = Long.MAX_VALUE;
+        long bestOpen = Long.MAX_VALUE;
+        for (int i=0; i < runs; i++) {
             long t0 = System.nanoTime();
             byte[] t = crypto_sign(m, sk);
             long t1 = System.nanoTime();
             res ^= t[45];
-            System.out.println("SIGN: " + (t1-t0)/1000_000);
+            long duration = (t1-t0)/1000_000;
+            bestSign = Math.min(bestSign, duration);
+            System.out.println("SIGN: " + duration + ", best: " + bestSign);
             byte[] opened = crypto_sign_open(t, pk);
             long t2 = System.nanoTime();
-            System.out.println("OPEN: " + (t2-t1)/1000_000);
+            duration = (t2-t1)/1000_000;
+            bestOpen = Math.min(bestOpen, duration);
+            System.out.println("OPEN: " + duration + ", best: " + bestSign);
         }
         return res;
     }

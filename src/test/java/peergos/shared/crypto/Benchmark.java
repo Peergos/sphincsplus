@@ -36,7 +36,7 @@ public class Benchmark {
             long t2 = System.nanoTime();
             duration = (t2-t1)/1000_000;
             bestOpen = Math.min(bestOpen, duration);
-            System.out.println("OPEN: " + duration + ", best: " + bestSign);
+            System.out.println("OPEN: " + duration + ", best: " + bestOpen);
         }
         return res;
     }

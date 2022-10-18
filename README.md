@@ -1,7 +1,7 @@
 # SPHINCS+
 A Java implementation of the SPHINCS+ post-quantum signature scheme - SPHINCS+-128f(SHA256)
 
-Ported from the reference C implementation.
+Ported from the [reference C implementation](https://github.com/sphincs/sphincsplus/).
 
 # Usage
 Just include the single file: [JavaSphincsplus.java](https://github.com/Peergos/sphincsplus/blob/main/src/java/peergos/shared/crypto/JavaSphincsplus.java)

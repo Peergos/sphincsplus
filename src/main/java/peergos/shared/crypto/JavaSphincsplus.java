@@ -2,6 +2,7 @@ package peergos.shared.crypto;
 
 import java.security.*;
 import java.util.*;
+import java.util.concurrent.*;
 
 public class JavaSphincsplus {
 
@@ -146,7 +147,7 @@ public class JavaSphincsplus {
 	    idx_leaf[0] = ((int)tree[0] & ((1 << SPX_TREE_HEIGHT)-1));
 	    tree[0] = tree[0] >> SPX_TREE_HEIGHT;
 	}
-	
+
 	System.arraycopy(m, 0, sig, SPX_BYTES, m.length);
 	return sig;
     }
@@ -822,9 +823,7 @@ public class JavaSphincsplus {
 		int[] leaf_addr = info.leaf_addr;
 
 		int[] pk_addr = info.pk_addr;
-		int i, k;
 		byte[] pk_buffer = new byte[SPX_WOTS_BYTES];
-		byte[] buffer;
 		int wots_k_mask;
 
 		if (leaf_idx == info.wots_sign_leaf) {
@@ -839,12 +838,39 @@ public class JavaSphincsplus {
 		set_keypair_addr( leaf_addr, leaf_idx );
 	
 		set_keypair_addr( pk_addr, leaf_idx );
-	
-		int bufferOffset = 0;
-		for (i = 0, buffer = pk_buffer; i < SPX_WOTS_LEN; i++, bufferOffset += SPX_N) {
+
+		List<ForkJoinTask<Boolean>> thashes = new ArrayList<>();
+
+		int parallelism = 2;
+		int stride = (SPX_WOTS_LEN + parallelism - 1) / parallelism;
+		List<Integer> splits = new ArrayList<>();
+		for (int t=0; t < parallelism; t++)
+			splits.add(t * stride);
+		splits.add(SPX_WOTS_LEN);
+
+		for (int j=0; j < splits.size() - 1; j++) {
+			int jCopy = j;
+			int[] addrs = Arrays.copyOfRange(leaf_addr, 0, leaf_addr.length);
+			if (j == splits.size() - 2) {
+				wots_loops(splits.get(jCopy), splits.get(jCopy + 1), pk_buffer, splits.get(jCopy) * SPX_N, wots_k_mask, addrs, info, ctx);
+			} else {
+				ForkJoinTask<Boolean> task = ForkJoinPool.commonPool().submit(() -> wots_loops(splits.get(jCopy), splits.get(jCopy + 1), pk_buffer, splits.get(jCopy) * SPX_N, wots_k_mask, addrs, info, ctx));
+				thashes.add(task);
+			}
+		}
+
+		for (ForkJoinTask<Boolean> hash : thashes) {
+			hash.join();
+		}
+		/* Do the final thash to generate the public keys */
+		thash(dest, destOffset, pk_buffer, 0, SPX_WOTS_LEN, ctx, pk_addr);
+	}
+
+	private static boolean wots_loops(int start, int end, byte[] buffer, int bufferOffset, int wots_k_mask, int[] leaf_addr, Leaf_info_x1 info, Spx_ctx ctx) {
+		for (int i = start; i < end; i++, bufferOffset += SPX_N) {
 			int wots_k = info.wots_steps[i] | wots_k_mask; /* Set wots_k to */
 			/* the step if we're generating a signature, ~0 if we're not */
-	    
+
 			/* Start with the secret seed */
 			set_chain_addr(leaf_addr, i);
 			set_hash_addr(leaf_addr, 0);
@@ -853,27 +879,30 @@ public class JavaSphincsplus {
 			prf_addr(buffer, bufferOffset, ctx, leaf_addr);
 
 			set_type(leaf_addr, SPX_ADDR_TYPE_WOTS);
-	    
-			/* Iterate down the WOTS chain */
-			for (k=0;; k++) {
-				/* Check if this is the value that needs to be saved as a */
-				/* part of the WOTS signature */
-				if (k == wots_k) {
-					System.arraycopy(buffer, bufferOffset, info.wots_sig, info.wots_sigOffset + i * SPX_N, SPX_N);
-				}
-		
-				/* Check if we hit the top of the chain */
-				if (k == SPX_WOTS_W - 1) break;
-		
-				/* Iterate one step on the chain */
-				set_hash_addr(leaf_addr, k);
 
-				thash(buffer, bufferOffset, buffer, bufferOffset, 1, ctx, leaf_addr);
-			}
+			wots_component(buffer, bufferOffset, leaf_addr, i, wots_k, info, ctx);
 		}
+		return true;
+	}
 
-		/* Do the final thash to generate the public keys */
-		thash(dest, destOffset, pk_buffer, 0, SPX_WOTS_LEN, ctx, pk_addr);
+	private static boolean wots_component(byte[] buffer, int off, int[] addrs, int i, int wots_k, Leaf_info_x1 info, Spx_ctx ctx) {
+		/* Iterate down the WOTS chain */
+		for (int k=0;; k++) {
+			/* Check if this is the value that needs to be saved as a */
+			/* part of the WOTS signature */
+			if (k == wots_k) {
+				System.arraycopy(buffer, off, info.wots_sig, info.wots_sigOffset + i * SPX_N, SPX_N);
+			}
+
+			/* Check if we hit the top of the chain */
+			if (k == SPX_WOTS_W - 1) break;
+
+			/* Iterate one step on the chain */
+			set_hash_addr(addrs, k);
+
+			thash(buffer, off, buffer, off, 1, ctx, addrs);
+		}
+		return true;
 	}
 
 	/*
@@ -998,7 +1027,7 @@ public class JavaSphincsplus {
      * Expects the layer and tree parts of the tree_addr to be set, as well as the
      * tree type (i.e. SPX_ADDR_TYPE_HASHTREE or SPX_ADDR_TYPE_FORSTREE)
      *
-     * This expecta tree_addr to be initialized to the addr structures for the 
+     * This expects tree_addr to be initialized to the addr structures for the
      * Merkle tree nodes
      *
      * Applies the offset idx_offset to indices before building addresses, so that
@@ -1026,7 +1055,7 @@ public class JavaSphincsplus {
 			int internal_leaf = leaf_idx;
 			int h;     /* The height we are in the Merkle tree */
 			for (h=0;; h++, internal_idx >>= 1, internal_leaf >>= 1) {
-		
+
 				/* Check if we hit the top of the tree */
 				if (h == tree_height) {
 					/* We hit the root; return it */
